@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "react-query";
 
 import Header from "./components/Header";
@@ -7,8 +7,18 @@ import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import Practice from "./pages/Practice";
 import Progress from "./pages/Progress";
+import Login from "./pages/Login";
+import SignUp from "./pages/SignUp";
+import StudentDashboard from './components/StudentDashboard';
+import TutorDashboard from './components/TutorDashboard';
+import CombinedDashboard from './components/CombinedDashboard';
 
 const queryClient = new QueryClient();
+
+const PrivateRoute = ({ children }) => {
+  const isAuthenticated = !!localStorage.getItem('user');
+  return isAuthenticated ? children : <Navigate to="/login" />;
+};
 
 const App = () => {
   return (
@@ -19,8 +29,33 @@ const App = () => {
           <main className="flex-grow container mx-auto px-4 py-8">
             <Routes>
               <Route path="/" element={<Home />} />
-              <Route path="/practice" element={<Practice />} />
-              <Route path="/progress" element={<Progress />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<SignUp />} />
+              <Route path="/practice" element={
+                <PrivateRoute>
+                  <Practice />
+                </PrivateRoute>
+              } />
+              <Route path="/progress" element={
+                <PrivateRoute>
+                  <Progress />
+                </PrivateRoute>
+              } />
+              <Route path="/student-dashboard" element={
+                <PrivateRoute>
+                  <StudentDashboard />
+                </PrivateRoute>
+              } />
+              <Route path="/tutor-dashboard" element={
+                <PrivateRoute>
+                  <TutorDashboard />
+                </PrivateRoute>
+              } />
+              <Route path="/combined-dashboard" element={
+                <PrivateRoute>
+                  <CombinedDashboard />
+                </PrivateRoute>
+              } />
             </Routes>
           </main>
           <Footer />
@@ -29,6 +64,5 @@ const App = () => {
     </QueryClientProvider>
   );
 };
-
 
 export default App;

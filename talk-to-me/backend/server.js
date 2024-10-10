@@ -4,6 +4,7 @@ const OpenAI = require('openai');
 const fs = require('fs');
 const cors = require('cors');
 const path = require('path');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
@@ -45,6 +46,81 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+let users = [];
+let sessions = {};
+
+app.post('/api/signup', async (req, res) => {
+  try {
+    const { username, email, password, role } = req.body;
+
+    // Check if user already exists
+    if (users.find(user => user.username === username || user.email === email)) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create new user
+    const newUser = { username, email, password: hashedPassword, role };
+    users.push(newUser);
+
+    res.status(201).json({ message: 'User created successfully' });
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ error: 'An error occurred during signup' });
+  }
+});
+
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const user = users.find(user => user.username === username);
+    if (!user) {
+      return res.status(400).json({ error: 'User not found' });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(400).json({ error: 'Invalid password' });
+    }
+
+    const sessionId = Math.random().toString(36).substr(2, 9);
+    sessions[sessionId] = { username: user.username, role: user.role };
+
+    res.json({ sessionId, role: user.role });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'An error occurred during login' });
+  }
+});
+
+app.post('/api/logout', (req, res) => {
+  const { sessionId } = req.body;
+  if (sessions[sessionId]) {
+    delete sessions[sessionId];
+    res.json({ message: 'Logged out successfully' });
+  } else {
+    res.status(400).json({ error: 'Invalid session' });
+  }
+});
+
+// Simple middleware to check if user is logged in
+const isAuthenticated = (req, res, next) => {
+  const sessionId = req.headers['x-session-id'];
+  if (sessions[sessionId]) {
+    req.user = sessions[sessionId];
+    next();
+  } else {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
+};
+
+app.get('/api/protected', isAuthenticated, (req, res) => {
+  res.json({ message: 'This is a protected route', user: req.user });
+});
+
 app.post('/api/get-feedback', async (req, res) => {
   try {
     const { transcript, language, feedbackLanguage } = req.body;
@@ -59,7 +135,7 @@ app.post('/api/get-feedback', async (req, res) => {
         4. Tone: Comment on the tone and register of the language. Is it appropriate for the context?
 
         Provide your feedback in a clear, organized manner. Do not repeat the original text. Instead, offer specific examples and suggestions for improvement. Be encouraging but thorough in your assessment.` },
-        { role: "system", content: `Remember to provide your feedback in ${feedbackLanguage}.` },
+        { role: "system", content: `Remember to provide your feedback STRICTLY in ${feedbackLanguage}.` },
         { role: "user", content: transcript }
       ],
     });
