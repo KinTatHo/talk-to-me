@@ -265,5 +265,36 @@ function processTranscription(segments) {
   return processedTranscript.join('\n');
 }
 
+app.put('/api/user/update', isAuthenticated, (req, res) => {
+  const { username, email, learningLanguages, teachingLanguages } = req.body;
+  const user = users.find(u => u.username === req.user.username);
+
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  // Update user information
+  user.username = username;
+  user.email = email;
+  user.learningLanguages = learningLanguages;
+  user.teachingLanguages = teachingLanguages;
+
+  // Update the session info if username has changed
+  if (username !== req.user.username) {
+    const sessionId = Object.keys(sessions).find(key => sessions[key].username === req.user.username);
+    if (sessionId) {
+      sessions[sessionId].username = username;
+    }
+  }
+
+  res.json({
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    learningLanguages: user.learningLanguages,
+    teachingLanguages: user.teachingLanguages
+  });
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

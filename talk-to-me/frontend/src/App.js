@@ -17,7 +17,8 @@ import SignUp from "./pages/SignUp";
 import StudentDashboard from "./components/StudentDashboard";
 import TutorDashboard from "./components/TutorDashboard";
 import CombinedDashboard from "./components/CombinedDashboard";
-import TutorList from "./components/TutorList"; // Make sure to import TutorList
+import TutorList from "./components/TutorList";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +83,14 @@ const App = () => {
                 element={
                   <PrivateRoute>
                     <TutorList />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <PrivateRoute>
+                    <Profile />
                   </PrivateRoute>
                 }
               />

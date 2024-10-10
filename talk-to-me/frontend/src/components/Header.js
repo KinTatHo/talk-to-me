@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { logout } from '../utils/auth';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, User } from 'lucide-react';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -53,6 +53,19 @@ const Header = () => {
     </motion.button>
   );
 
+  const ProfileIcon = () => (
+    <motion.div
+      variants={buttonVariants}
+      initial="initial"
+      whileHover="hover"
+      whileTap="tap"
+    >
+      <Link to="/profile" className="mx-2 p-2 rounded-full ">
+        <User size={24} />
+      </Link>
+    </motion.div>
+  );
+
   const renderNavLinks = (isMobile = false) => (
     <>
       <AnimatedLink to="/practice" onClick={isMobile ? () => setIsOpen(false) : undefined}>Practice</AnimatedLink>
@@ -69,6 +82,7 @@ const Header = () => {
       {user.role === 'both' && (
         <AnimatedLink to="/combined-dashboard" onClick={isMobile ? () => setIsOpen(false) : undefined}>Dashboard</AnimatedLink>
       )}
+      {isMobile && <AnimatedLink to="/settings" onClick={() => setIsOpen(false)}>Settings</AnimatedLink>}
       <AnimatedButton onClick={handleLogout}>Logout</AnimatedButton>
     </>
   );
@@ -89,7 +103,12 @@ const Header = () => {
           <Link to="/">Talk To Me</Link>
         </motion.h1>
         <nav className="hidden md:flex items-center">
-          {user ? renderNavLinks() : (
+          {user ? (
+            <>
+              {renderNavLinks()}
+              <ProfileIcon />
+            </>
+          ) : (
             <>
               <AnimatedLink to="/login">Login</AnimatedLink>
               <AnimatedLink to="/signup">Sign Up</AnimatedLink>
