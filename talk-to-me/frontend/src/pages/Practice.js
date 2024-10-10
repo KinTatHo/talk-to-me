@@ -82,7 +82,9 @@ const Practice = () => {
         console.error("Transcription error:", error);
         setError(
           error.response?.data?.error ||
-            "An error occurred during transcription"
+          error.response?.data?.details ||
+          error.message ||
+          "An unknown error occurred during transcription"
         );
       },
     }

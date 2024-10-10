@@ -121,6 +121,15 @@ app.get('/api/protected', isAuthenticated, (req, res) => {
   res.json({ message: 'This is a protected route', user: req.user });
 });
 
+app.get('/api/tutors', (req, res) => {
+  const { language } = req.query;
+  const tutors = users.filter(user => 
+    (user.role === 'tutor' || user.role === 'both') && 
+    (!language || user.language === language)
+  );
+  res.json(tutors.map(({ id, username, language }) => ({ id, username, language })));
+});
+
 app.post('/api/get-feedback', async (req, res) => {
   try {
     const { transcript, language, feedbackLanguage } = req.body;
@@ -146,6 +155,25 @@ app.post('/api/get-feedback', async (req, res) => {
   }
 });
 
+const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
+
+const ISO6391 = require('iso-639-1');
+
+function convertLanguageCode(code) {
+  // Extract the first part of the code (e.g., 'en' from 'en-US')
+  const baseCode = code.split('-')[0].toLowerCase();
+  
+  // Validate if it's a valid ISO 639-1 code
+  if (ISO6391.validate(baseCode)) {
+    return baseCode;
+  } else {
+    console.warn(`Invalid language code: ${code}. Defaulting to English.`);
+    return 'en';
+  }
+}
+
 app.post('/api/transcribe', (req, res) => {
   upload(req, res, async function(err) {
     if (err) {
@@ -164,19 +192,28 @@ app.post('/api/transcribe', (req, res) => {
 
     try {
       console.log('Attempting to transcribe file...');
+      console.log('Language:', req.body.language);
+      const language = convertLanguageCode(req.body.language || 'en');
+
       const transcription = await openai.audio.transcriptions.create({
         file: fs.createReadStream(req.file.path),
         model: "whisper-1",
-        language: req.body.language || 'zh-CN' // Use the language sent from frontend, default to Chinese
+        language: language,
+        response_format: "verbose_json",
+        timestamp_granularities: ["segment"]
       });
+
       console.log('Transcription successful');
+      console.log('Transcription result:', transcription);
+
+      // Post-process the transcription to separate speakers
+      const processedTranscript = processTranscription(transcription.segments);
+
       fs.unlinkSync(req.file.path); // Delete the temporary file
-      res.json({ transcript: transcription.text });
+      res.json({ transcript: processedTranscript });
     } catch (error) {
       console.error('Transcription error:', error);
-      // Log the full error object
       console.error('Full error object:', JSON.stringify(error, null, 2));
-      // Check if there's a response from OpenAI API
       if (error.response) {
         console.error('OpenAI API response:', error.response.data);
       }
@@ -188,6 +225,23 @@ app.post('/api/transcribe', (req, res) => {
     }
   });
 });
+
+function processTranscription(segments) {
+  let processedTranscript = [];
+  let currentSpeaker = "Speaker 1";
+
+  segments.forEach((segment, index) => {
+    if (index > 0) {
+      const pauseDuration = segment.start - segments[index - 1].end;
+      if (pauseDuration > 1.5) { // Assume speaker change if pause is longer than 1.5 seconds
+        currentSpeaker = currentSpeaker === "Speaker 1" ? "Speaker 2" : "Speaker 1";
+      }
+    }
+    processedTranscript.push(`${currentSpeaker}: ${segment.text}`);
+  });
+
+  return processedTranscript.join('\n');
+}
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

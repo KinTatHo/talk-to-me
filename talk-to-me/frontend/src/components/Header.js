@@ -53,6 +53,26 @@ const Header = () => {
     </motion.button>
   );
 
+  const renderNavLinks = (isMobile = false) => (
+    <>
+      <AnimatedLink to="/practice" onClick={isMobile ? () => setIsOpen(false) : undefined}>Practice</AnimatedLink>
+      <AnimatedLink to="/progress" onClick={isMobile ? () => setIsOpen(false) : undefined}>Progress</AnimatedLink>
+      {(user.role === 'student' || user.role === 'both') && (
+        <AnimatedLink to="/find-tutor" onClick={isMobile ? () => setIsOpen(false) : undefined}>Find Tutor</AnimatedLink>
+      )}
+      {user.role === 'student' && (
+        <AnimatedLink to="/student-dashboard" onClick={isMobile ? () => setIsOpen(false) : undefined}>Dashboard</AnimatedLink>
+      )}
+      {user.role === 'tutor' && (
+        <AnimatedLink to="/tutor-dashboard" onClick={isMobile ? () => setIsOpen(false) : undefined}>Dashboard</AnimatedLink>
+      )}
+      {user.role === 'both' && (
+        <AnimatedLink to="/combined-dashboard" onClick={isMobile ? () => setIsOpen(false) : undefined}>Dashboard</AnimatedLink>
+      )}
+      <AnimatedButton onClick={handleLogout}>Logout</AnimatedButton>
+    </>
+  );
+
   return (
     <motion.header 
       className="bg-blue-700 text-white p-4"
@@ -69,22 +89,7 @@ const Header = () => {
           <Link to="/">Talk To Me</Link>
         </motion.h1>
         <nav className="hidden md:flex items-center">
-          {user ? (
-            <>
-              <AnimatedLink to="/practice">Practice</AnimatedLink>
-              <AnimatedLink to="/progress">Progress</AnimatedLink>
-              {user.role === 'student' && (
-                <AnimatedLink to="/student-dashboard">Dashboard</AnimatedLink>
-              )}
-              {user.role === 'tutor' && (
-                <AnimatedLink to="/tutor-dashboard">Dashboard</AnimatedLink>
-              )}
-              {user.role === 'both' && (
-                <AnimatedLink to="/combined-dashboard">Dashboard</AnimatedLink>
-              )}
-              <AnimatedButton onClick={handleLogout}>Logout</AnimatedButton>
-            </>
-          ) : (
+          {user ? renderNavLinks() : (
             <>
               <AnimatedLink to="/login">Login</AnimatedLink>
               <AnimatedLink to="/signup">Sign Up</AnimatedLink>
@@ -111,22 +116,7 @@ const Header = () => {
             transition={{ duration: 0.3 }}
           >
             <ul className="flex flex-col space-y-2">
-              {user ? (
-                <>
-                  <AnimatedLink to="/practice" onClick={() => setIsOpen(false)}>Practice</AnimatedLink>
-                  <AnimatedLink to="/progress" onClick={() => setIsOpen(false)}>Progress</AnimatedLink>
-                  {user.role === 'student' && (
-                    <AnimatedLink to="/student-dashboard" onClick={() => setIsOpen(false)}>Dashboard</AnimatedLink>
-                  )}
-                  {user.role === 'tutor' && (
-                    <AnimatedLink to="/tutor-dashboard" onClick={() => setIsOpen(false)}>Dashboard</AnimatedLink>
-                  )}
-                  {user.role === 'both' && (
-                    <AnimatedLink to="/combined-dashboard" onClick={() => setIsOpen(false)}>Dashboard</AnimatedLink>
-                  )}
-                  <AnimatedButton onClick={handleLogout}>Logout</AnimatedButton>
-                </>
-              ) : (
+              {user ? renderNavLinks(true) : (
                 <>
                   <AnimatedLink to="/login" onClick={() => setIsOpen(false)}>Login</AnimatedLink>
                   <AnimatedLink to="/signup" onClick={() => setIsOpen(false)}>Sign Up</AnimatedLink>
