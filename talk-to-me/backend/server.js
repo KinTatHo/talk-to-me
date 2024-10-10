@@ -51,7 +51,7 @@ let sessions = {};
 
 app.post('/api/signup', async (req, res) => {
   try {
-    const { username, email, password, role } = req.body;
+    const { username, email, password, role, learningLanguages, teachingLanguages } = req.body;
 
     // Check if user already exists
     if (users.find(user => user.username === username || user.email === email)) {
@@ -62,7 +62,14 @@ app.post('/api/signup', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new user
-    const newUser = { username, email, password: hashedPassword, role };
+    const newUser = { 
+      username, 
+      email, 
+      password: hashedPassword, 
+      role,
+      learningLanguages,
+      teachingLanguages
+    };
     users.push(newUser);
 
     res.status(201).json({ message: 'User created successfully' });
@@ -123,11 +130,26 @@ app.get('/api/protected', isAuthenticated, (req, res) => {
 
 app.get('/api/tutors', (req, res) => {
   const { language } = req.query;
-  const tutors = users.filter(user => 
-    (user.role === 'tutor' || user.role === 'both') && 
-    (!language || user.language === language)
-  );
-  res.json(tutors.map(({ id, username, language }) => ({ id, username, language })));
+  console.log('Fetching tutors. Requested language:', language);
+  console.log('All users:', users);
+
+  const tutors = users.filter(user => {
+    const isTutor = user.role === 'tutor' || user.role === 'both';
+    const teachesLanguage = !language || (user.teachingLanguages && user.teachingLanguages.includes(language));
+    console.log(`User ${user.username}: isTutor=${isTutor}, teachesLanguage=${teachesLanguage}`);
+    return isTutor && teachesLanguage;
+  });
+
+  console.log('Filtered tutors:', tutors);
+
+  const tutorData = tutors.map(({ id, username, teachingLanguages }) => ({ 
+    id, 
+    username, 
+    teachingLanguages: teachingLanguages || [] 
+  }));
+
+  console.log('Sending tutor data:', tutorData);
+  res.json(tutorData);
 });
 
 app.post('/api/get-feedback', async (req, res) => {

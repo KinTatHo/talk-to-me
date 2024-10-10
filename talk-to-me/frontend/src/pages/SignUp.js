@@ -7,20 +7,27 @@ const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("");
-  const [language, setLanguage] = useState("");
+  const [learningLanguages, setLearningLanguages] = useState([]);
+  const [teachingLanguages, setTeachingLanguages] = useState([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
+  const languageOptions = [
+    "English", "Spanish", "French", "German", "Chinese"
+  ];
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
     try {
       const response = await axios.post("http://localhost:3001/api/signup", {
         username,
         email,
         password,
         role,
-        language,
+        learningLanguages,
+        teachingLanguages,
       });
       console.log("Signup successful:", response.data);
       navigate("/login");
@@ -29,8 +36,42 @@ const SignUp = () => {
       setError(
         error.response?.data?.message || "An error occurred during signup"
       );
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const handleLanguageChange = (language, type) => {
+    if (type === 'learning') {
+      setLearningLanguages(prev => 
+        prev.includes(language)
+          ? prev.filter(lang => lang !== language)
+          : [...prev, language]
+      );
+    } else {
+      setTeachingLanguages(prev => 
+        prev.includes(language)
+          ? prev.filter(lang => lang !== language)
+          : [...prev, language]
+      );
+    }
+  };
+
+  const LanguageCheckboxes = ({ languages, setLanguages, type }) => (
+    <div className="space-y-2">
+      {languageOptions.map((lang) => (
+        <label key={`${type}-${lang}`} className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            checked={languages.includes(lang)}
+            onChange={() => handleLanguageChange(lang, type)}
+            className="form-checkbox h-5 w-5 text-blue-600"
+          />
+          <span>{lang}</span>
+        </label>
+      ))}
+    </div>
+  );
 
   return (
     <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-xl">
@@ -79,20 +120,33 @@ const SignUp = () => {
             <option value="both">Both</option>
           </select>
         </div>
-        <div className="mb-4">
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            required
-          >
-            <option value="">Select Language</option>
-            <option value="english">English</option>
-            <option value="spanish">Spanish</option>
-            <option value="french">French</option>
-            <option value="german">German</option>
-            <option value="chinese">Chinese</option>
-          </select>
-        </div>
+        
+        {(role === 'student' || role === 'both') && (
+          <div className="mb-4">
+            <label className="block mb-2 text-sm font-medium text-gray-700">
+              Languages you want to learn:
+            </label>
+            <LanguageCheckboxes 
+              languages={learningLanguages} 
+              setLanguages={setLearningLanguages} 
+              type="learning"
+            />
+          </div>
+        )}
+        
+        {(role === 'tutor' || role === 'both') && (
+          <div className="mb-4">
+            <label className="block mb-2 text-sm font-medium text-gray-700">
+              Languages you want to teach:
+            </label>
+            <LanguageCheckboxes 
+              languages={teachingLanguages} 
+              setLanguages={setTeachingLanguages} 
+              type="teaching"
+            />
+          </div>
+        )}
+        
         <button
           type="submit"
           disabled={isLoading}
