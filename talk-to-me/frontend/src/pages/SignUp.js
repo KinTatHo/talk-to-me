@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { TermsAndConditions } from "../components/constants/TermsAndConditions";
+import { useUser } from "../components/UserContext";
 
 const SignUp = () => {
   const [username, setUsername] = useState("");
@@ -16,9 +17,9 @@ const SignUp = () => {
   const [showTerms, setShowTerms] = useState(false);
   const navigate = useNavigate();
 
-  const languageOptions = [
-    "English", "Spanish", "French", "German", "Chinese"
-  ];
+  const { setUser } = useUser();
+
+  const languageOptions = ["English", "Spanish", "French", "German", "Chinese"];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,7 +38,25 @@ const SignUp = () => {
         teachingLanguages,
       });
       console.log("Signup successful:", response.data);
-      navigate("/login");
+
+      // Log the user in immediately after signup
+      const loginResponse = await axios.post(
+        "http://localhost:3001/api/login",
+        {
+          username,
+          password,
+        }
+      );
+
+      localStorage.setItem("sessionId", loginResponse.data.sessionId);
+
+      // Fetch user data and set it in the context
+      const userResponse = await axios.get("http://localhost:3001/api/user", {
+        headers: { "x-session-id": loginResponse.data.sessionId },
+      });
+      setUser(userResponse.data);
+
+      navigate("/dashboard");
     } catch (error) {
       console.error("Signup error:", error);
       setError(
@@ -49,16 +68,16 @@ const SignUp = () => {
   };
 
   const handleLanguageChange = (language, type) => {
-    if (type === 'learning') {
-      setLearningLanguages(prev => 
+    if (type === "learning") {
+      setLearningLanguages((prev) =>
         prev.includes(language)
-          ? prev.filter(lang => lang !== language)
+          ? prev.filter((lang) => lang !== language)
           : [...prev, language]
       );
     } else {
-      setTeachingLanguages(prev => 
+      setTeachingLanguages((prev) =>
         prev.includes(language)
-          ? prev.filter(lang => lang !== language)
+          ? prev.filter((lang) => lang !== language)
           : [...prev, language]
       );
     }
@@ -127,33 +146,33 @@ const SignUp = () => {
             <option value="both">Both</option>
           </select>
         </div>
-        
-        {(role === 'student' || role === 'both') && (
+
+        {(role === "student" || role === "both") && (
           <div className="mb-4">
             <label className="block mb-2 text-sm font-medium text-gray-700">
               Languages you want to learn:
             </label>
-            <LanguageCheckboxes 
-              languages={learningLanguages} 
-              setLanguages={setLearningLanguages} 
+            <LanguageCheckboxes
+              languages={learningLanguages}
+              setLanguages={setLearningLanguages}
               type="learning"
             />
           </div>
         )}
-        
-        {(role === 'tutor' || role === 'both') && (
+
+        {(role === "tutor" || role === "both") && (
           <div className="mb-4">
             <label className="block mb-2 text-sm font-medium text-gray-700">
               Languages you want to teach:
             </label>
-            <LanguageCheckboxes 
-              languages={teachingLanguages} 
-              setLanguages={setTeachingLanguages} 
+            <LanguageCheckboxes
+              languages={teachingLanguages}
+              setLanguages={setTeachingLanguages}
               type="teaching"
             />
           </div>
         )}
-        
+
         <div className="mt-4 mb-6">
           <label className="flex items-center">
             <input
@@ -163,7 +182,7 @@ const SignUp = () => {
               className="form-checkbox h-5 w-5 text-blue-600"
             />
             <span className="ml-2 text-sm text-gray-700">
-              I agree to the {" "}
+              I agree to the{" "}
               <button
                 type="button"
                 onClick={() => setShowTerms(!showTerms)}
@@ -176,12 +195,12 @@ const SignUp = () => {
         </div>
 
         {showTerms && <TermsAndConditions />}
-        
+
         <button
           type="submit"
           disabled={isLoading || !agreeToTerms}
           className={`w-full py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 ${
-            (isLoading || !agreeToTerms) ? "opacity-50 cursor-not-allowed" : ""
+            isLoading || !agreeToTerms ? "opacity-50 cursor-not-allowed" : ""
           }`}
         >
           {isLoading ? (

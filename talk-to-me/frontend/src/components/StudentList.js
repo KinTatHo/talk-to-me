@@ -1,84 +1,75 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useUser } from "./UserContext";
 
-const TutorList = () => {
-  const [tutors, setTutors] = useState([]);
-  const [filteredTutors, setFilteredTutors] = useState([]);
+const StudentList = () => {
+  const [students, setStudents] = useState([]);
+  const [filteredStudents, setFilteredStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filterLanguage, setFilterLanguage] = useState("");
-  
+  const { user } = useUser();
 
   const languageOptions = ["English", "Spanish", "French", "German", "Chinese"];
-  
 
   useEffect(() => {
-    const fetchTutors = async () => {
+    const fetchStudents = async () => {
       try {
-        const response = await axios.get('http://localhost:3001/api/tutors', {
+        const response = await axios.get('http://localhost:3001/api/students', {
           headers: { 'x-session-id': localStorage.getItem('sessionId') }
         });
-        console.log('Fetched tutors:', response.data);
-        setTutors(response.data);
-        setFilteredTutors(response.data);
+        console.log('Fetched students:', response.data);
+        setStudents(response.data);
+        setFilteredStudents(response.data);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching tutors:', error);
-        setError('Failed to fetch tutors: ' + (error.response?.data?.error || error.message));
+        console.error('Error fetching students:', error);
+        setError('Failed to fetch students: ' + (error.response?.data?.error || error.message));
         setLoading(false);
       }
     };
 
-    fetchTutors();
-    const checkUsers = async () => {
-        try {
-          const response = await axios.get('http://localhost:3001/api/check-users');
-          console.log('All users in database:', response.data);
-        } catch (error) {
-          console.error('Error checking users:', error);
-        }
-      };
-      checkUsers();
-    }, []);
+    fetchStudents();
+  }, []);
 
   useEffect(() => {
     if (filterLanguage) {
-      setFilteredTutors(
-        tutors.filter(
-          (tutor) =>
-            tutor.teachingLanguages &&
-            tutor.teachingLanguages.includes(filterLanguage)
+      setFilteredStudents(
+        students.filter(
+          (student) =>
+            student.learningLanguages &&
+            student.learningLanguages.includes(filterLanguage)
         )
       );
     } else {
-      setFilteredTutors(tutors);
+      setFilteredStudents(students);
     }
-  }, [filterLanguage, tutors]);
+  }, [filterLanguage, students]);
 
-  const connectWithTutor = async (tutorId) => {
+  const connectWithStudent = async (studentId) => {
     try {
       const response = await axios.post('http://localhost:3001/api/connect', 
-        { tutorId },
+        { studentId },
         { headers: { 'x-session-id': localStorage.getItem('sessionId') } }
       );
       alert(response.data.message);
       // You might want to update the UI here to reflect the new connection
     } catch (error) {
-      console.error('Error connecting with tutor:', error);
-      alert(error.response?.data?.error || 'Failed to connect with tutor. Please try again.');
+      console.error('Error connecting with student:', error);
+      alert(error.response?.data?.error || 'Failed to connect with student. Please try again.');
     }
   };
 
-  if (loading) return <div className="text-center mt-8">Loading tutors...</div>;
+  if (loading) return <div className="text-center mt-8">Loading students...</div>;
   if (error)
     return <div className="text-center mt-8 text-red-500">{error}</div>;
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h2 className="text-2xl font-bold mb-6">Available Tutors</h2>
+      <h2 className="text-2xl font-bold mb-6">Available Students</h2>
       <div className="mb-4">
         <label htmlFor="language-filter" className="block mb-2">
-          Filter by Language:
+          Filter by Learning Language:
         </label>
         <select
           id="language-filter"
@@ -94,27 +85,27 @@ const TutorList = () => {
           ))}
         </select>
       </div>
-      {filteredTutors.length === 0 ? (
-        <p>No tutors available for the selected criteria.</p>
+      {filteredStudents.length === 0 ? (
+        <p>No students available for the selected criteria.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTutors.map((tutor) => (
-            <div key={tutor._id} className="bg-white shadow-lg rounded-lg p-6">
-              <h3 className="text-xl font-semibold mb-2">{tutor.username}</h3>
+          {filteredStudents.map((student) => (
+            <div key={student._id} className="bg-white shadow-lg rounded-lg p-6">
+              <h3 className="text-xl font-semibold mb-2">{student.username}</h3>
               <p className="text-gray-600 mb-4">
-                Teaching Languages:{" "}
-                {tutor.teachingLanguages
-                  ? tutor.teachingLanguages.join(", ")
+                Learning Languages:{" "}
+                {student.learningLanguages
+                  ? student.learningLanguages.join(", ")
                   : "Not specified"}
               </p>
               <button
-                onClick={() => connectWithTutor(tutor._id)}
+                onClick={() => connectWithStudent(student._id)}
                 className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300 mr-2"
               >
-                Connect with Tutor
+                Connect with Student
               </button>
               <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
-                Book Session
+                Offer Session
               </button>
             </div>
           ))}
@@ -124,4 +115,4 @@ const TutorList = () => {
   );
 };
 
-export default TutorList;
+export default StudentList;

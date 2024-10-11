@@ -3,15 +3,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import { logout } from '../utils/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, User } from 'lucide-react';
+import { useUser } from './UserContext';
 
 const Header = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user'));
+  const { user, setUser } = useUser();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
-    localStorage.removeItem('user');
+    localStorage.removeItem('sessionId');
+    setUser(null);
     navigate('/login');
     setIsOpen(false);
   };
@@ -73,15 +75,7 @@ const Header = () => {
       {(user.role === 'student' || user.role === 'both') && (
         <AnimatedLink to="/find-tutor" onClick={isMobile ? () => setIsOpen(false) : undefined}>Find Tutor</AnimatedLink>
       )}
-      {user.role === 'student' && (
-        <AnimatedLink to="/student-dashboard" onClick={isMobile ? () => setIsOpen(false) : undefined}>Dashboard</AnimatedLink>
-      )}
-      {user.role === 'tutor' && (
-        <AnimatedLink to="/tutor-dashboard" onClick={isMobile ? () => setIsOpen(false) : undefined}>Dashboard</AnimatedLink>
-      )}
-      {user.role === 'both' && (
-        <AnimatedLink to="/combined-dashboard" onClick={isMobile ? () => setIsOpen(false) : undefined}>Dashboard</AnimatedLink>
-      )}
+      <AnimatedLink to="/dashboard" onClick={isMobile ? () => setIsOpen(false) : undefined}>Dashboard</AnimatedLink>
       {isMobile && <AnimatedLink to="/settings" onClick={() => setIsOpen(false)}>Settings</AnimatedLink>}
       <AnimatedButton onClick={handleLogout}>Logout</AnimatedButton>
     </>

@@ -8,6 +8,13 @@ const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
+const mongoose = require('mongoose');
+const http = require('http');
+const socketIo = require('socket.io');
+
+mongoose.connect('mongodb://localhost/talktome', { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB connection error:', err));
 
 // Multer configuration with file filter
 const storage = multer.diskStorage({
@@ -53,8 +60,12 @@ app.post('/api/signup', async (req, res) => {
   try {
     const { username, email, password, role, learningLanguages, teachingLanguages } = req.body;
 
+    console.log('Signup attempt:', { username, email, role, learningLanguages, teachingLanguages });
+
     // Check if user already exists
-    if (users.find(user => user.username === username || user.email === email)) {
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+      console.log('User already exists:', existingUser.username);
       return res.status(400).json({ error: 'User already exists' });
     }
 
@@ -62,17 +73,20 @@ app.post('/api/signup', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new user
-    const newUser = { 
+    const newUser = new User({ 
       username, 
       email, 
       password: hashedPassword, 
       role,
       learningLanguages,
       teachingLanguages
-    };
-    users.push(newUser);
+    });
 
-    res.status(201).json({ message: 'User created successfully' });
+    await newUser.save();
+
+    console.log('New user created:', newUser);
+
+    res.status(201).json({ message: 'User created successfully', userId: newUser._id });
   } catch (error) {
     console.error('Signup error:', error);
     res.status(500).json({ error: 'An error occurred during signup' });
@@ -83,7 +97,7 @@ app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    const user = users.find(user => user.username === username);
+    const user = await User.findOne({ username });
     if (!user) {
       return res.status(400).json({ error: 'User not found' });
     }
@@ -94,7 +108,7 @@ app.post('/api/login', async (req, res) => {
     }
 
     const sessionId = Math.random().toString(36).substr(2, 9);
-    sessions[sessionId] = { username: user.username, role: user.role };
+    sessions[sessionId] = { username: user.username, role: user.role, id: user._id };
 
     res.json({ sessionId, role: user.role });
   } catch (error) {
@@ -102,6 +116,7 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ error: 'An error occurred during login' });
   }
 });
+
 
 app.post('/api/logout', (req, res) => {
   const { sessionId } = req.body;
@@ -113,43 +128,96 @@ app.post('/api/logout', (req, res) => {
   }
 });
 
+
 // Simple middleware to check if user is logged in
-const isAuthenticated = (req, res, next) => {
+const isAuthenticated = async (req, res, next) => {
   const sessionId = req.headers['x-session-id'];
-  if (sessions[sessionId]) {
-    req.user = sessions[sessionId];
-    next();
-  } else {
-    res.status(401).json({ error: 'Unauthorized' });
+  console.log('Received session ID:', sessionId);
+
+  if (!sessionId) {
+    console.log('No session ID provided');
+    return res.status(401).json({ error: 'No session ID provided' });
+  }
+
+  if (!sessions[sessionId]) {
+    console.log('Invalid session ID');
+    return res.status(401).json({ error: 'Invalid session' });
+  }
+
+  try {
+    const user = await User.findOne({ username: sessions[sessionId].username });
+    if (user) {
+      console.log('User authenticated:', user.username);
+      req.user = { id: user._id, ...sessions[sessionId] };
+      next();
+    } else {
+      console.log('User not found in database');
+      res.status(401).json({ error: 'User not found' });
+    }
+  } catch (error) {
+    console.error('Error in isAuthenticated middleware:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+app.get('/api/user', isAuthenticated, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: 'An error occurred while fetching user data' });
+  }
+});
 
 app.get('/api/protected', isAuthenticated, (req, res) => {
   res.json({ message: 'This is a protected route', user: req.user });
 });
 
-app.get('/api/tutors', (req, res) => {
-  const { language } = req.query;
-  console.log('Fetching tutors. Requested language:', language);
-  console.log('All users:', users);
+app.get('/api/tutors', isAuthenticated, async (req, res) => {
+  try {
+    const { language } = req.query;
+    console.log('Fetching tutors. Requested language:', language);
 
-  const tutors = users.filter(user => {
-    const isTutor = user.role === 'tutor' || user.role === 'both';
-    const teachesLanguage = !language || (user.teachingLanguages && user.teachingLanguages.includes(language));
-    console.log(`User ${user.username}: isTutor=${isTutor}, teachesLanguage=${teachesLanguage}`);
-    return isTutor && teachesLanguage;
-  });
+    let query = { $or: [{ role: 'tutor' }, { role: 'both' }] };
+    if (language) {
+      query.teachingLanguages = language;
+    }
 
-  console.log('Filtered tutors:', tutors);
+    const tutors = await User.find(query).select('-password');
 
-  const tutorData = tutors.map(({ id, username, teachingLanguages }) => ({ 
-    id, 
-    username, 
-    teachingLanguages: teachingLanguages || [] 
-  }));
+    console.log('Tutor query:', query);
+    console.log('Found tutors:', tutors);
 
-  console.log('Sending tutor data:', tutorData);
-  res.json(tutorData);
+    res.json(tutors);
+  } catch (error) {
+    console.error('Error in /api/tutors:', error);
+    res.status(500).json({ error: 'An error occurred while fetching tutors' });
+  }
+});
+
+app.get('/api/students', isAuthenticated, async (req, res) => {
+  try {
+    const { language } = req.query;
+    console.log('Fetching students. Requested language:', language);
+
+    let query = { $or: [{ role: 'student' }, { role: 'both' }] };
+    if (language) {
+      query.learningLanguages = language;
+    }
+
+    const students = await User.find(query).select('-password');
+
+    console.log('Filtered students:', students);
+
+    res.json(students);
+  } catch (error) {
+    console.error('Error in /api/students:', error);
+    res.status(500).json({ error: 'An error occurred while fetching students' });
+  }
 });
 
 app.post('/api/get-feedback', async (req, res) => {
@@ -295,6 +363,214 @@ app.put('/api/user/update', isAuthenticated, (req, res) => {
     teachingLanguages: user.teachingLanguages
   });
 });
+
+// Define Mongoose schemas
+const MessageSchema = new mongoose.Schema({
+  sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+  recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+  content: String,
+  read: { type: Boolean, default: false, index: true },
+  timestamp: { type: Date, default: Date.now }
+});
+
+const UserSchema = new mongoose.Schema({
+  username: String,
+  email: String,
+  password: String,
+  role: String,
+  learningLanguages: [String],
+  teachingLanguages: [String],
+  tutors: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  students: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+});
+
+MessageSchema.index({ recipient: 1, read: 1 });
+
+const Message = mongoose.model('Message', MessageSchema);
+const User = mongoose.model('User', UserSchema);
+
+const connectionExists = async (studentId, tutorId) => {
+  const student = await User.findById(studentId);
+  return student.tutors.includes(tutorId);
+};
+
+
+// Create HTTP server
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+const io = socketIo(server);
+
+// Socket.IO connection handler
+io.on('connection', (socket) => {
+  console.log('New client connected');
+  
+  socket.on('join', (userId) => {
+    socket.join(userId);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected');
+  });
+});
+
+// New API endpoints
+app.post('/api/connect', isAuthenticated, async (req, res) => {
+  try {
+    const { tutorId, studentId } = req.body;
+    const currentUserId = req.user.id;
+
+    let tutor, student;
+
+    if (tutorId) {
+      // Student is initiating the connection
+      tutor = await User.findById(tutorId);
+      student = await User.findById(currentUserId);
+    } else if (studentId) {
+      // Tutor is initiating the connection
+      tutor = await User.findById(currentUserId);
+      student = await User.findById(studentId);
+    } else {
+      return res.status(400).json({ error: 'Missing tutorId or studentId' });
+    }
+
+    if (!tutor || !student) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if connection already exists
+    if (student.tutors.includes(tutor._id) || tutor.students.includes(student._id)) {
+      return res.status(400).json({ error: 'Connection already exists' });
+    }
+
+    // Update the connections
+    student.tutors.push(tutor._id);
+    tutor.students.push(student._id);
+
+    await Promise.all([student.save(), tutor.save()]);
+
+    res.json({ message: 'Connection established successfully' });
+  } catch (error) {
+    console.error('Error in /api/connect:', error);
+    res.status(500).json({ error: 'An error occurred while establishing connection' });
+  }
+});
+
+app.get('/api/connections', isAuthenticated, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .populate('tutors', 'username email teachingLanguages')
+      .populate('students', 'username email learningLanguages');
+
+    const connections = {
+      tutors: user.tutors,
+      students: user.students
+    };
+
+    res.json(connections);
+  } catch (error) {
+    console.error('Error in /api/connections:', error);
+    res.status(500).json({ error: 'An error occurred while fetching connections' });
+  }
+});
+
+app.post('/api/message', isAuthenticated, async (req, res) => {
+  try {
+    const { recipientId, content } = req.body;
+    const senderId = req.user.id;
+
+    const message = new Message({
+      sender: senderId,
+      recipient: recipientId,
+      content
+    });
+
+    await message.save();
+
+    io.to(recipientId).emit('new message', message);
+
+    res.json({ message: 'Message sent successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'An error occurred while sending the message' });
+  }
+});
+
+app.get('/api/messages', isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const messages = await Message.find({
+      $or: [{ sender: userId }, { recipient: userId }]
+    }).sort({ timestamp: -1 }).limit(50);
+
+    res.json(messages);
+  } catch (error) {
+    res.status(500).json({ error: 'An error occurred while fetching messages' });
+  }
+});
+
+app.get('/api/messages/:recipientId', isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const recipientId = req.params.recipientId;
+    const messages = await Message.find({
+      $or: [
+        { sender: userId, recipient: recipientId },
+        { sender: recipientId, recipient: userId }
+      ]
+    }).sort({ timestamp: 1 }).limit(50);
+
+    res.json(messages);
+  } catch (error) {
+    res.status(500).json({ error: 'An error occurred while fetching messages' });
+  }
+});
+
+app.get('/api/check-users', async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    console.log('All users in database:', users);
+    res.json(users);
+  } catch (error) {
+    console.error('Error checking users:', error);
+    res.status(500).json({ error: 'An error occurred while checking users' });
+  }
+});
+
+app.get('/api/unread-messages', isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log('Fetching unread messages for user:', userId);
+
+    const unreadMessages = await Message.aggregate([
+      {
+        $match: {
+          recipient: mongoose.Types.ObjectId(userId),
+          read: false
+        }
+      },
+      {
+        $group: {
+          _id: '$sender',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    console.log('Unread messages aggregation result:', unreadMessages);
+
+    const unreadCounts = {};
+    unreadMessages.forEach(item => {
+      unreadCounts[item._id.toString()] = item.count;
+    });
+
+    console.log('Unread counts:', unreadCounts);
+    res.json(unreadCounts);
+  } catch (error) {
+    console.error('Error fetching unread message counts:', error);
+    res.status(500).json({ error: 'An error occurred while fetching unread message counts' });
+  }
+});
+
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
