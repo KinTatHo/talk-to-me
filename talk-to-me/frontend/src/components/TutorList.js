@@ -7,7 +7,6 @@ const TutorList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterLanguage, setFilterLanguage] = useState('');
-  const user = JSON.parse(localStorage.getItem('user'));
 
   const languageOptions = ['English', 'Spanish', 'French', 'German', 'Chinese'];
 

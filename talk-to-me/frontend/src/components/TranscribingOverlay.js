@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 
 export const TranscribingOverlay = () => {
   const [dots, setDots] = useState("...");

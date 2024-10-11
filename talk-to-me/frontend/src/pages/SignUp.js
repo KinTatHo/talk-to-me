@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { TermsAndConditions } from "../components/constants/TermsAndConditions";
 
 const SignUp = () => {
   const [username, setUsername] = useState("");
@@ -11,6 +12,8 @@ const SignUp = () => {
   const [teachingLanguages, setTeachingLanguages] = useState([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const navigate = useNavigate();
 
   const languageOptions = [
@@ -19,6 +22,10 @@ const SignUp = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!agreeToTerms) {
+      setError("You must agree to the Terms and Conditions to sign up.");
+      return;
+    }
     setIsLoading(true);
     try {
       const response = await axios.post("http://localhost:3001/api/signup", {
@@ -147,11 +154,34 @@ const SignUp = () => {
           </div>
         )}
         
+        <div className="mt-4 mb-6">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={agreeToTerms}
+              onChange={(e) => setAgreeToTerms(e.target.checked)}
+              className="form-checkbox h-5 w-5 text-blue-600"
+            />
+            <span className="ml-2 text-sm text-gray-700">
+              I agree to the {" "}
+              <button
+                type="button"
+                onClick={() => setShowTerms(!showTerms)}
+                className="text-blue-600 underline focus:outline-none"
+              >
+                Terms and Conditions
+              </button>
+            </span>
+          </label>
+        </div>
+
+        {showTerms && <TermsAndConditions />}
+        
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || !agreeToTerms}
           className={`w-full py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 ${
-            isLoading ? "opacity-50 cursor-not-allowed" : ""
+            (isLoading || !agreeToTerms) ? "opacity-50 cursor-not-allowed" : ""
           }`}
         >
           {isLoading ? (
