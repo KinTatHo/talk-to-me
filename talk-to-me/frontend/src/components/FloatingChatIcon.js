@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle } from 'lucide-react';
 import axios from 'axios';
-import { useUser } from './UserContext';
+import { useUser } from '../contexts/UserContext';
 import io from 'socket.io-client';
 
 const FloatingChatIcon = () => {

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { TermsAndConditions } from "../components/constants/TermsAndConditions";
-import { useUser } from "../components/UserContext";
+import { useUser } from "../contexts/UserContext";
 
 const SignUp = () => {
   const [username, setUsername] = useState("");

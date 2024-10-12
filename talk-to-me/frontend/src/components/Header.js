@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { logout } from '../utils/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, User } from 'lucide-react';
-import { useUser } from './UserContext';
+import { useUser } from '../contexts/UserContext';
 
 const Header = () => {
   const navigate = useNavigate();

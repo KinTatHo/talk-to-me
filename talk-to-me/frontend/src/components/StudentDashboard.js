@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import MessageList from './MessageList';
 import UserInfo from './UserInfo';
-import { useUser } from './UserContext';
+import { useUser } from '../contexts/UserContext';
 
 const StudentDashboard = () => {
     const { user } = useUser();

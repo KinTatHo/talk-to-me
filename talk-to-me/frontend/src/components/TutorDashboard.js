@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import MessageList from "./MessageList";
 import UserInfo from "./UserInfo";
 import StudentList from "./StudentList";
-import { useUser } from "./UserContext";
+import { useUser } from "../contexts/UserContext";
 
 const TutorDashboard = () => {
   const { user } = useUser();

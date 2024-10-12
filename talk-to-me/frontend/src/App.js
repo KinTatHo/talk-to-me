@@ -6,7 +6,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "react-query";
-import { UserProvider, useUser } from "./components/UserContext";
+import { UserProvider, useUser } from "./contexts/UserContext";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
