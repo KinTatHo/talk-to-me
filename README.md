@@ -30,7 +30,7 @@ Before you begin, ensure you have the following installed:
 
 1. Clone the repository:
    ```
-   git clone https://github.com/your-username/talk-to-me.git
+   git clone https://github.com/KinTatHo/talk-to-me
    cd talk-to-me
    ```
 
