@@ -223,22 +223,44 @@ app.get('/api/students', isAuthenticated, async (req, res) => {
 app.post('/api/get-feedback', async (req, res) => {
   try {
     const { transcript, language, feedbackLanguage } = req.body;
-    const completion = await openai.chat.completions.create({
+
+    // Step 1: Analyze speakers to identify the student
+    const speakerAnalysis = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
-        { role: "system", content: `You are an expert language tutor for ${language}. Your task is to provide specific, constructive feedback on the following text. Focus on these areas:
-
-        1. Structure: Evaluate the overall organization of ideas and sentences. Comment on coherence and flow.
-        2. Grammar: Identify and explain any grammatical errors. Provide corrections and explanations.
-        3. Vocabulary: Assess the range and appropriateness of vocabulary used. Suggest improvements or alternatives where applicable.
-        4. Tone: Comment on the tone and register of the language. Is it appropriate for the context?
-
-        Provide your feedback in a clear, organized manner. Do not repeat the original text. Instead, offer specific examples and suggestions for improvement. Be encouraging but thorough in your assessment.` },
-        { role: "system", content: `Remember to provide your feedback STRICTLY in ${feedbackLanguage}.` },
+        { role: "system", content: `You are an expert language analyst. Your task is to analyze the following conversation in ${language} between two speakers. Identify which speaker is likely the student based on their language proficiency, grammatical errors, and vocabulary usage. In your response, refer to the identified student as "Student" instead of "Speaker 1" or "Speaker 2". Provide a brief explanation for your decision.` },
         { role: "user", content: transcript }
       ],
     });
-    res.json({ feedback: completion.choices[0].message.content });
+
+    const studentAnalysis = speakerAnalysis.choices[0].message.content;
+    console.log("Student Analysis:", studentAnalysis);
+
+    // Step 2: Get feedback for the identified student
+    const feedbackCompletion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        { role: "system", content: `You are an expert language tutor for ${language}. You will be provided with a conversation transcript and an analysis identifying the student. Your task is to provide specific, constructive feedback ONLY for the identified student's speech. Focus on these areas:
+
+        1. Grammar: Identify and explain grammatical errors. Provide corrections and explanations.
+        2. Vocabulary: Assess the range and appropriateness of vocabulary used. Provide a list of at least 5 words or phrases the student misspoke or could have used instead, in the format:
+           Vocabulary Improvements:
+           - Incorrect/Basic word -> Suggested improvement (with brief explanation)
+        3. Ignore all spelling errors and pronounciation errors as it may be due to the transcript's fault
+
+        Provide your feedback in a clear, organized manner. Offer specific examples from the student's speech and suggestions for improvement. Always refer to the student STRICTLY as "Student" instead of "Speaker 1" or "Speaker 2" or "student 1" or "student 2". Be encouraging but thorough in your assessment. Remember to provide your feedback STRICTLY in ${feedbackLanguage}.` },
+        { role: "user", content: `Student Analysis: ${studentAnalysis}\n\nTranscript: ${transcript}` }
+      ],
+    });
+
+    // Post-process the feedback to ensure "Student" is used consistently
+    let processedFeedback = feedbackCompletion.choices[0].message.content;
+    processedFeedback = processedFeedback.replace(/Speaker 1|Speaker 2/g, "Student");
+
+    res.json({ 
+      studentAnalysis: studentAnalysis,
+      feedback: processedFeedback 
+    });
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'An error occurred while getting feedback' });

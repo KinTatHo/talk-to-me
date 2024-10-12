@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { TranscribingOverlay } from "../components/TranscribingOverlay";
+import TranscribingOverlay from "../components/TranscribingOverlay";
 import { useMutation } from "react-query";
+import AIFeedbackLoadingOverlay from "../components/AIFeedbackOverlay";
 import axios from "axios";
 
 const Practice = () => {
@@ -146,6 +147,7 @@ const Practice = () => {
   return (
     <div className="space-y-6">
       {transcribeMutation.isLoading && <TranscribingOverlay />}
+      {getFeedbackMutation.isLoading && <AIFeedbackLoadingOverlay />}
       <h2 className="text-3xl font-bold">Practice Your Speaking</h2>
       <div className="grid grid-cols-2 gap-4">
         <div>
