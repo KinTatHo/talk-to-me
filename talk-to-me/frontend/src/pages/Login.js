@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../utils/auth';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useUser } from '../components/UserContext';
+import axios from 'axios';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -9,28 +11,35 @@ const Login = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { setUser } = useUser();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     try {
-      const userData = await login(username, password);
-      localStorage.setItem('user', JSON.stringify(userData));
-      if (userData.role === 'student') {
-        navigate('/student-dashboard');
-      } else if (userData.role === 'tutor') {
-        navigate('/tutor-dashboard');
-      } else {
-        navigate('/combined-dashboard');
-      }
+      const response = await login(username, password);
+      localStorage.setItem('sessionId', response.sessionId);
+      
+      // Fetch user data and set it in the context
+      const userResponse = await axios.get('http://localhost:3001/api/user', {
+        headers: { 'x-session-id': response.sessionId }
+      });
+      setUser(userResponse.data);
+      
+      // Navigate to the single dashboard route
+      navigate('/dashboard');
     } catch (error) {
-      if (error.message === 'User not found') {
-        setError('User does not exist. Please check your username.');
-      } else if (error.message === 'Invalid password') {
-        setError('Incorrect password. Please try again.');
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        setError(error.response.data.error || 'Login failed. Please try again.');
+      } else if (error.request) {
+        // The request was made but no response was received
+        setError('No response from server. Please try again later.');
       } else {
-        setError('Login failed. Please try again later.');
+        // Something happened in setting up the request that triggered an Error
+        setError('An error occurred. Please try again.');
       }
     } finally {
       setIsLoading(false);

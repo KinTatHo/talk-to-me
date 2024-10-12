@@ -6,7 +6,7 @@ import axios from "axios";
 const Practice = () => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [selectedLanguage, setSelectedLanguage] = useState("zh-CN");
+  const [selectedLanguage, setSelectedLanguage] = useState("en-US");
   const [feedbackLanguage, setFeedbackLanguage] = useState("en-US");
   const [recognition, setRecognition] = useState(null);
   const [file, setFile] = useState(null);

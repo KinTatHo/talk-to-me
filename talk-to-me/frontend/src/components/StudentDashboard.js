@@ -1,7 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import MessageList from './MessageList';
+import UserInfo from './UserInfo';
+import { useUser } from './UserContext';
 
 const StudentDashboard = () => {
+    const { user } = useUser();
+
+    if (!user) {
+      return <div>Loading...</div>;
+    }
+
   return (
     <div className="min-h-screen bg-gray-100">
       <nav className="bg-white shadow-sm">
@@ -29,7 +38,7 @@ const StudentDashboard = () => {
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          <h2 className="text-2xl font-bold mb-4">Welcome, Student!</h2>
+          <UserInfo />
           <div className="bg-white overflow-hidden shadow rounded-lg divide-y divide-gray-200">
             <div className="px-4 py-5 sm:p-6">
               <h3 className="text-lg leading-6 font-medium text-gray-900">
