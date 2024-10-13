@@ -4,9 +4,7 @@
 /node_modules
 /.pnp
 .pnp.js
-*.json
 .env
-.package-lock.json
 *.flac
 *.m4a
 *.mp3
